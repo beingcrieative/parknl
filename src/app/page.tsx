@@ -1,7 +1,112 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useMemo } from 'react';
+import Header from '@/components/Header';
+import SearchFilter from '@/components/SearchFilter';
+import CategoryTabs from '@/components/CategoryTabs';
+import ResultsInfo from '@/components/ResultsInfo';
+import ParkCard from '@/components/ParkCard';
+import { parksData } from '@/data/parks';
 
 export default function Home() {
+  const [isGridView, setIsGridView] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentFilter, setCurrentFilter] = useState('all');
+  const [currentCategory, setCurrentCategory] = useState('all');
+  const [sortOption, setSortOption] = useState('distance');
+
+  const filteredParks = useMemo(() => {
+    return parksData.filter(park => {
+      const matchesSearch = !searchTerm || 
+        park.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        park.location.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        park.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        park.ageRange.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = currentCategory === 'all' || park.type === currentCategory;
+      
+      let matchesFilter = true;
+      switch(currentFilter) {
+        case 'price-low':
+          matchesFilter = park.priceValue <= 20;
+          break;
+        case 'price-mid':
+          matchesFilter = park.priceValue > 20 && park.priceValue <= 30;
+          break;
+        case 'price-high':
+          matchesFilter = park.priceValue > 30;
+          break;
+        case 'distance-near':
+          matchesFilter = park.distance <= 50;
+          break;
+        case 'has-stay':
+          matchesFilter = park.hasStay;
+          break;
+        case 'for-young':
+          matchesFilter = park.ageRange.includes('3') || 
+                         park.ageRange.includes('4') || 
+                         park.ageRange.includes('peuter') || 
+                         park.ageRange.includes('kleuter');
+          break;
+      }
+      
+      return matchesSearch && matchesCategory && matchesFilter;
+    }).sort((a, b) => {
+      switch(sortOption) {
+        case 'distance':
+          return a.distance - b.distance;
+        case 'price':
+          return a.priceValue - b.priceValue;
+        case 'price-desc':
+          return b.priceValue - a.priceValue;
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return a.distance - b.distance;
+      }
+    });
+  }, [searchTerm, currentFilter, currentCategory, sortOption]);
+
   return (
+    <>
+      <Header isGridView={isGridView} onViewToggle={() => setIsGridView(!isGridView)} />
+      
+      <SearchFilter
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        currentFilter={currentFilter}
+        onFilterChange={setCurrentFilter}
+      />
+      
+      <CategoryTabs
+        currentCategory={currentCategory}
+        onCategoryChange={setCurrentCategory}
+      />
+      
+      <ResultsInfo
+        resultCount={filteredParks.length}
+        sortOption={sortOption}
+        onSortChange={setSortOption}
+      />
+      
+      <div className={`p-4 grid gap-4 ${isGridView ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+        {filteredParks.map(park => (
+          <ParkCard
+            key={park.id}
+            park={park}
+            isGridView={isGridView}
+          />
+        ))}
+        
+        {filteredParks.length === 0 && (
+          <div className="col-span-full text-center py-8">
+            <p className="text-gray-500">
+              Geen locaties gevonden met deze filters.
+            </p>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setCurrentFilter('all');
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
         <Image
